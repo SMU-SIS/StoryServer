@@ -1,0 +1,63 @@
+
+application: storyserver1
+version: 1
+runtime: python
+api_version: 1
+
+default_expiration: '365d'
+
+skip_files: |
+    ^(.*/)?(
+    (app\.yaml)|
+    (index\.yaml)|
+    (\..*)|
+    (.*\.pyc)|
+    (.*\.bat)|
+    (.*\.psd)|
+    (Thumbs.db)|
+    (.*\.svn/.*)|
+    (.*\.lnk)|
+    (_darcs/.*)|
+    (nbproject/.*)|
+    )$
+
+handlers:
+- url: /rest.*
+  script: restful.py
+  
+- url: /rpx.php
+  script: rpx.py
+
+- url: /logout
+  script: rpx.py
+
+- url: /remote_api
+  script: $PYTHON_LIB/google/appengine/ext/remote_api/handler.py
+  login: admin
+
+- url: /_ah/queue/deferred
+  script: $PYTHON_LIB/google/appengine/ext/deferred/handler.py
+  login: admin
+
+- url: /stats.*
+  script: $PYTHON_LIB/google/appengine/ext/appstats/ui.py
+
+- url: /test.*
+  script: gaeunit/gaeunit.py
+
+- url: /console/static
+  static_dir: console/app/view/static
+  expiration: 1d  # Changes more often
+
+- url: /console.*
+  script: console/app/console.py
+  login: admin
+
+- url: /gui
+  static_dir: gui-project/gui
+  expiration: 1m
+
+- url: /.*
+  script: main.py
+
+
