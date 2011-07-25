@@ -15,61 +15,44 @@ from django.utils import simplejson as json
 
 class ActionHandler(webapp.RequestHandler):
 
-    def fetch_content(self,url):
-        params = urllib.urlencode({'test': "test"})
-        try:
- 	   		request_time = datetime.datetime.now()
- 	   		deadline = 10
-			result = urlfetch.fetch(url=url,
-                                payload=params,
-                                method=urlfetch.POST,
-                                deadline=deadline,
-                                headers={'Content-Type': 'application/x-www-form-urlencoded'})
-			response_time = datetime.datetime.now()
-			logging.info("headers %s", result.headers)
-			logging.info("result content %s", result.content)
-			delta = response_time - request_time
-			request_microseconds = delta.seconds * 1000000 + delta.microseconds
-			status = result.status_code
-			return True, result.content
-		    
-        except Exception, e:
-			logging.info("Not catching exceptions yet. %s", str(e))
-			return False, str(e)
-
-	def my_custom_method(self):
-		self.response.write('Hello, custom method world!')
+    def my_custom_method(self):
+        self.response.write('Hello, custom method world!')
         
     def time_check(self, year, month):
         self.response.write('The year is: %s and the month is: %s' % (year, month) )
     
+    #This eventually needs to migrate to the task model and should be tested there. 
     def check_url(self, url=None, contains=None):
-		url = self.request.get("url")
-		contains = self.request.get("contains")
-		doesnotcontain = self.request.get("doesnotcontain")
-		url_contains = self.request.get("url_contains")
+        url = self.request.get("url")
+        url_contains = self.request.get("url_contains")
+        url_content_contains = self.request.get("url_content_contains")
+        url_content_does_not_contain = self.request.get("url_content_does_not_contain")
+        task_key = self.request.get("task_key")
 		
-		format = self.request.get("format")
-		url_fetchable, content = self.fetch_content(url)
-		passed = True
-		if contains and contains not in content: 
+        format = self.request.get("format")
+        #url_fetchable, content = self.fetch_content(url)
+        url_fetchable, passed, content = models.Task.fetch_content(url)
+        
+        passed = True
+        if url_content_contains and url_content_contains not in content: 
 			passed = False
 		
-		if doesnotcontain and doesnotcontain in content:
+        if url_content_does_not_contain and url_content_does_not_contain in content:
 			passed = False
 		
-		if url_contains and url_contains not in url:
+        if url_contains and url_contains not in url:
 			passed = False
 		
-		if format=="plain":	
-		  self.response.write('Checked <br>url=%s <br>url fetchable=%s <br>url_contains=%s <br>contains=%s <br>does not contain=%s <br>passed=%s <br> Contents were: <hr> %s' % (url, url_fetchable, url_contains, contains, doesnotcontain, passed, content) )
-		else:
+        if format=="plain":	
+		  self.response.write('Checked <br>url=%s <br>url fetchable=%s <br>url_contains=%s <br>url_content_contains=%s <br>url_content_does_not_contain=%s <br>passed=%s <br>task_key=%s <br>Contents were: <hr> %s' % (url, url_fetchable, url_contains, url_content_contains, url_content_does_not_contain, passed, task_key, content) )
+        else:
 			resultDict = {"passed":passed,
 						  "url": url,
 						  "url_fetchable": url_fetchable,
-						  "contains":contains,
-						  "doesnotcontain": doesnotcontain,
+						  "url_content_contains":url_content_contains,
+						  "url_content_does_not_contain": url_content_does_not_contain,
 						  "url_contains" : url_contains,
+						  "task_key" : task_key,
 						  "content":content}
         	
  			self.response.headers['Content-Type'] = 'application/json'

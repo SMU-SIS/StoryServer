@@ -8,6 +8,7 @@
 CurrentUserController.$inject = ['$resource'];
   function CurrentUserController($resource){
    this.Activity = $resource( '../rest/action/get_current_user');
+   this.callback = 'http://127.0.0.1:8080/rpx.php'
    this.fetch();
   }
   CurrentUserController.prototype = {
@@ -53,6 +54,9 @@ AppController.prototype = {
 </script>
 </head>
 <body ng:controller="AppController">
+
+<iframe src="http://singpath.rpxnow.com/openid/embed?token_url=http://127.0.0.1:8080/rpx.php" scrolling="no" frameBorder="no" allowtransparency="true" style="width:400px;height:240px"></iframe>
+
 
  <a href="https://pivotalexpert.rpxnow.com/openid/v2/signin?token_url=http://127.0.0.1:8080/rpx.php">Hard coded signin link that redirects back to http://127.0.0.1:8080 </a> <br>
  <a href="https://pivotalexpert.rpxnow.com/openid/v2/signin?token_url=http://storyserver1.appspot.com/rpx.php">Hard coded signin link that redirects back to storyserver1.appspot.com </a> <br>
