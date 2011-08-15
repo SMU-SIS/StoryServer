@@ -33,6 +33,7 @@ class Test_Models(unittest.TestCase):
         for x in models.StoryStep.all(): x.delete()
         for x in models.Story.all(): x.delete()
         for x in models.User.all(): x.delete()
+        for x in models.Task.all(): x.delete()
                 
     def test_user_creation(self):  
         user = models.User(user_id ='Bob').save()
@@ -117,7 +118,8 @@ class Test_Models(unittest.TestCase):
         self.assertEqual(True, url_fetchable) 
         self.assertEqual(True, passed)
         
-        #Add test to check for url_contains
+
+        #Add test to check for url_contains by passing url, taskKey, and content to Task.evaluate()
         #Add test to check for url_content_contains
         #Add test to check for url_content_does_not_contain
         #Add test to check for contains_game_id      

@@ -1,0 +1,4 @@
+To launch the local dev_appserver.py with the development datastore use. 
+
+dev_appserver.py --datastore_path=development.datastore .
+

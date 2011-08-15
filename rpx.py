@@ -108,7 +108,7 @@ class RPXTokenHandler(webapp.RequestHandler):
       self.log_user_in(user_id=unique_identifier, nickname=nickname, email=email)
       logging.info('login successful, redirect to /login/')
 #      self.redirect('/profile/%s' % unique_identifier)
-      self.redirect('/gui/rest-test.html')
+      self.redirect('/index.html')
     else:
       logging.error('there was an error in rpx login')
       self.redirect('/')

@@ -1,0 +1,252 @@
+<!doctype html>
+<html xmlns:ng="http://angularjs.org">
+<head>
+<title>List all models</title>
+<script src="_js/jquery-1.4.2.min.js" type="text/javascript"></script>
+<script src="lib/angular/angular.min.js" type="text/javascript" ng:autobind></script>
+<script type="text/javascript">
+
+CurrentUserController.$inject = ['$resource'];
+  function CurrentUserController($resource){
+   this.Activity = $resource( '../rest/action/get_current_user');
+   this.fetch();
+
+  }
+  CurrentUserController.prototype = {
+   fetch: function(){
+    this.currentUser = this.Activity.get();
+    this.$parent.currentUser = this.currentUser;
+   }
+  };
+
+AppController.$inject = ['$resource', '$updateView', '$location'];
+function AppController($resource, $updateView, $location){
+	
+  this.$resource = $resource;
+  this.$location = $location;
+  this.Obj = $resource('../rest/:obj/:key', {key: '@key', obj: '@obj'});
+  this.selectedModel = undefined;
+  this.selectedItem = undefined;
+  this.selectedMeta = undefined;
+  this.meta = {};
+  this.metadata = [];
+  this.getMetadata();
+  this.$watch('$location.hash', function(){
+    var path = $location.hashPath;
+    var search = $location.hashSearch;
+    if (path == 'edit') {
+      this.selectedModel = search.model;
+      this.selectedItem = this.Obj.get({obj: search.model, key: search.key});
+      this.selectedMeta = this.meta[search.model];
+    } else if (path == 'create') {
+      this.selectedModel = search.model;
+      if (this['T'+search.model]) {
+        this.selectedItem = new this['T'+search.model]({});
+      }
+      this.selectedMeta = this.meta[search.model];
+      
+     } else if (path == 'list') {
+      this.selectedModel = search.model;
+    } else {
+      this.selectedModel = undefined;
+      this.selectedItem = undefined;
+      this.selectedMeta = undefined;
+    }
+  });
+}
+AppController.prototype = {
+  list: function(model, filter) {
+    var that = this;
+    var params = {obj: model+'.json'};
+    if (filter) {
+      $.extend(params, filter);
+    }
+    this.Obj.query(params, function(l){
+      that[model] = l;
+    })
+  },
+  edit: function(model, c) {
+    this.$location.update({hashPath: 'edit', hashSearch: {model: model, key: c.key}}) //go to "edit" page
+  },
+  createApp: function(model, competition_key) {
+	//alert("Competition "+competition_key);
+	this.$location.update({hashPath: 'create', hashSearch: {model: model, competition: competition_key, owner:'4567'}}) //go to "create" page
+  },
+  createItem: function(model) {
+    this.$location.update({hashPath: 'create', hashSearch: {model: model}}) //go to "create" page
+  },
+  myList: function(model) {
+    this.$location.update({hashPath: 'list', hashSearch: {model: model}}); //go to "list" page
+  },
+  save: function(c) {
+    var that = this;
+    var props = {};
+    if (this.selectedItem.key) {
+      props.obj = this.selectedModel;
+    }
+    //remove empty properties from the entity, so default values can apply in GAE
+    for (var i in this.selectedItem) {
+      if (this.selectedItem.hasOwnProperty(i) && this.selectedItem[i] === '') {
+        delete this.selectedItem[i];
+      }
+    }
+    //save the entity
+    this.selectedItem.$save(props, function(){
+      that.$location.update({hashPath: '', hashSearch: {}}) //go back to the "home" page
+      that.list(that.selectedModel);
+    });
+  },
+  cancel: function(c) {
+    this.$location.update({hashPath: '', hashSearch: {}}) //go back to the "home" page
+  },
+  getMetadata: function() {
+    var that = this;
+    //get metadata for all models. we just get back the models' names so need to download
+    //model metadata one by one
+    this.Obj.get({obj: 'metadata.json'}, function(l){
+      that.metadata = l;
+      for (var i in l.type) {
+        var model = l.type[i];
+        //create a new resource for the model, because otherwise entity saving is not working
+        //the resource's name will be like TCountry, TInterface
+        that['T'+model] = that.$resource('../rest/'+model+'/:key', {key: '@key'});
+        //download entities with this model
+        that.list(model);
+        //download the model's metadata
+        that.getModelMetadata(model);
+      }
+    })
+  },
+  getModelMetadata: function(model) {
+    var that = this;
+    //download the metadata (attributes' names and types) of the given model
+    this.Obj.get({obj: 'metadata', key: model}, function(l){
+      that.meta[model] = {name: model, attributes: []};
+      //unpack the received attribute list, since it is unnecessary complex
+      for (var i in l['xs:element']['xs:complexType']['xs:sequence']['xs:element']) {
+        var attr = l['xs:element']['xs:complexType']['xs:sequence']['xs:element'][i];
+        that.meta[model].attributes.push(attr);
+      }
+      //support deep linking. if someone refreshes the create or edit page, the
+      //metadata has not been downloaded for that model when the code ran in $watch.
+      //so we need to manually correct it when the metadata has been downloaded.
+      if (model == that.selectedModel) {
+        that.selectedMeta = that.meta[model];
+        //even more hacking for "create" page: instantiate the new object what the user
+        //will fill out
+        if (that.$location.hashPath == 'create') {
+          that.selectedItem = new that['T'+model]({});
+        }
+      }
+    })
+  },
+  //expression operator for angular, since it is not possible to use ? : inside braces
+  expop: function(cond, iftrue, ifelse) {
+    return (cond ? iftrue : ifelse);
+  }
+}
+</script>
+</head>
+
+<!-- The AppController is the default scope of this page. -->
+<body ng:controller="AppController">
+  
+  <!-- Here is how to fetch the current user and provide login and logout links. -->
+  <div ng:controller="CurrentUserController">
+
+	 <div ng:show="!currentUser.nickname">
+	   <a href="https://pivotalexpert.rpxnow.com/openid/v2/signin?token_url=http://{{$location.host}}:{{$location.port}}/rpx.php">Login</a> <br>
+	 </div>
+	 <div ng:show="currentUser.nickname" >
+	   Hi {{currentUser.nickname}}.  <a href="/logout?target=/index.html">Log out</a> <br> 
+	 </div>
+ </div>
+ <br>
+  
+  <hr>
+  Add <a href="/index.html#EDITALL">EDITALL</a> to the url to see all entries to edit. <br>
+  Just going to the <a href="/index.html">plain index</a> will not show all the entries. <br>  
+  Current Selected Model: {{this.selectedModel}} <br>
+  Available Models: {{this.metadata.type}} <br>
+  
+  Here is an example on how to create links to see all the entities of any of these models. <br>
+    <b ng:repeat="model in metadata.type">
+      <button ng:click="myList(model)">list {{model}}</button>
+    </b> <br>
+    
+  <div ng:show="$location.hashPath=='list'">
+     <h1>{{selectedModel}}</h1>
+     <button ng:click="createItem(selectedModel)">Create new item</button>
+    <table border="1">
+      <tr>
+        <td ng:repeat="attr in this.meta[selectedModel].attributes">{{attr['@name']}}</td>
+      </tr>
+      <tr ng:repeat="c in this[selectedModel]">
+        <td ng:repeat="attr in this.meta[selectedModel].attributes">{{c[attr['@name']]}}</td>
+          <td><button ng:click="edit(selectedModel, c)">Edit</button></td>
+      </tr>
+    </table>
+    <hr>
+    
+  </div> 
+  <hr>  
+       
+  Fetching the first model in the available models list. <br>
+
+    <h1>{{metadata.type[0]}}</h1>
+    <button ng:click="createItem(metadata.type[0])">Create new item</button>
+    <table border="1">
+      <tr>
+        <td ng:repeat="attr in this.meta[metadata.type[0]].attributes">{{attr['@name']}}</td>
+      </tr>
+      <tr ng:repeat="c in this[metadata.type[0]]">
+        <td ng:repeat="attr in this.meta[metadata.type[0]].attributes">{{c[attr['@name']]}}</td>
+          <td><button ng:click="edit(metadata.type[0], c)">Edit</button></td>
+      </tr>
+    </table>
+    <hr>
+    
+      
+  <div ng:show="$location.hashPath=='create'">
+    <h1>{{expop($location.hashPath=='edit', 'Edit ','Create new ')+selectedModel}}</h1>
+
+    <table border="1">
+      <tr ng:repeat="attr in selectedMeta.attributes">
+        <td>{{attr['@name']}}</td>
+        <td>
+          <ng:switch on="attr['@type']">
+            <input ng:switch-when="xs:dateTime" name="selectedItem[attr['@name']]" size="40"/>
+            <select ng:switch-when="xs:boolean" name="selectedItem[attr['@name']]">
+              <option></option>
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+            <input ng:switch-when="xs:long" ng:validate="integer" name="selectedItem[attr['@name']]" size="80"/>
+            <input ng:switch-when="xs:double" ng:validate="number" name="selectedItem[attr['@name']]" size="80"/>
+            <input ng:switch-default name="selectedItem[attr['@name']]" size="80"/>
+          </ng:switch>
+        </td>
+      </tr>
+    </table>
+    <button ng:click="save()">Save</button>
+    <button ng:click="cancel()">Cancel</button>
+  </div>
+  
+    <div ng:repeat="model in metadata.type" ng:show="$location.hashPath=='EDITALL'">
+    <h1>{{model}}</h1>
+    <button ng:click="createItem(model)">Create new item</button>
+    <table border="1">
+      <tr>
+        <td ng:repeat="attr in this.meta[model].attributes">{{attr['@name']}}</td>
+      </tr>
+      <tr ng:repeat="c in this[model]">
+        <td ng:repeat="attr in this.meta[model].attributes">{{c[attr['@name']]}}</td>
+          <td><button ng:click="edit(model, c)">Edit</button></td>
+      </tr>
+    </table>
+    
+  </div>
+  
+  
+</body>
+</html>

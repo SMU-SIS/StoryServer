@@ -1,6 +1,6 @@
 
 application: storyserver1
-version: 1
+version: 2
 runtime: python
 api_version: 1
 
@@ -56,8 +56,15 @@ handlers:
 - url: /gui
   static_dir: gui-project/gui
   expiration: 1m
+  
+- url: /index.html
+  static_files: devgui/index.html
+  upload: index.html
+  secure: optional
 
-- url: /.*
-  script: main.py
+- url: /
+  static_dir: devgui
+  expiration: 1m
+
 
 
